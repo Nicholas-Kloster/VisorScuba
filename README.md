@@ -10,6 +10,24 @@ Part of the [NuClide](https://nuclide-research.com) AI-LLM-Infrastructure-OSINT 
 
 ---
 
+## Use with Claude Code
+
+Claude Code can run VisorScuba assessments, interpret compliance gaps, and translate scores into remediation plans or disclosure drafts.
+
+```
+Run `visorscuba assess --db nuclide.db --json` and analyze the output. For every node scoring 0–3, describe the specific violations, what an attacker can do with each one, and what remediation the affected org needs to apply to reach a passing score.
+```
+
+```
+I have a VisorScuba HTML report for 168 nodes. Identify the most common violation IDs, calculate what percentage of nodes fail each control, and draft a one-page executive summary with a prioritized remediation roadmap.
+```
+
+```
+Run `visorscuba assess --db nuclide.db --org "government" --json` and cross-reference results against the VisorLog findings for the same IPs. For each government node with AI.C4 flagged, identify the underlying critical finding (C1/C2/C3) and draft a CERT disclosure stub.
+```
+
+---
+
 ## What It Does
 
 Evaluates every open finding against six baseline controls:
@@ -89,24 +107,6 @@ VisorScuba reads from VisorLog's `nuclide.db`. The engine maps each SQLite row t
   "models": [{"name": "llama3", "system_prompt": "", "is_cloud": false}],
   "tags": ["CVE-2025-63389"]
 }
-```
-
----
-
-## Use with Claude Code
-
-Claude Code can run VisorScuba assessments, interpret compliance gaps, and translate scores into remediation plans or disclosure drafts.
-
-```
-Run `visorscuba assess --db nuclide.db --json` and analyze the output. For every node scoring 0–3, describe the specific violations, what an attacker can do with each one, and what remediation the affected org needs to apply to reach a passing score.
-```
-
-```
-I have a VisorScuba HTML report for 168 nodes. Identify the most common violation IDs, calculate what percentage of nodes fail each control, and draft a one-page executive summary with a prioritized remediation roadmap.
-```
-
-```
-Run `visorscuba assess --db nuclide.db --org "government" --json` and cross-reference results against the VisorLog findings for the same IPs. For each government node with AI.C4 flagged, identify the underlying critical finding (C1/C2/C3) and draft a CERT disclosure stub.
 ```
 
 ---
