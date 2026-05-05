@@ -19,9 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-The CISA ScubaGear Rego policies bundled in `rego/scubagear/` are CC0 1.0
-Universal (Public Domain Dedication) and originate from
-https://github.com/cisagov/ScubaGear. Their CC0 status is preserved.
