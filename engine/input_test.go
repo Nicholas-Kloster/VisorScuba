@@ -97,6 +97,95 @@ func TestApplyTagDerivations_BrowserControl(t *testing.T) {
 	}
 }
 
+// Code-assistant tier (category 09). Added 2026-05-14. Before this,
+// OpenHands / Sourcegraph / Sourcebot / Tabnine / Sweep / Dyad / Refact
+// findings fell through to the generic "AI/ML service" label that AI.C1
+// explicitly excludes — so every code-assistant finding scored 0
+// violations. Same class of gap as the "everything is Ollama" bug and
+// the browser-automation gap before it.
+
+func TestClassifyService_OpenHands(t *testing.T) {
+	got := classifyService([]string{"CODE-ASSISTANT", "OPENHANDS", "UNAUTH"})
+	if got != "OpenHands" {
+		t.Errorf("classifyService(OPENHANDS) = %q; want OpenHands", got)
+	}
+}
+
+func TestClassifyService_Sourcegraph(t *testing.T) {
+	got := classifyService([]string{"CODE-ASSISTANT", "SOURCEGRAPH"})
+	if got != "Sourcegraph" {
+		t.Errorf("classifyService(SOURCEGRAPH) = %q; want Sourcegraph", got)
+	}
+}
+
+func TestClassifyService_Sourcebot(t *testing.T) {
+	got := classifyService([]string{"CODE-ASSISTANT", "SOURCEBOT"})
+	if got != "Sourcebot" {
+		t.Errorf("classifyService(SOURCEBOT) = %q; want Sourcebot", got)
+	}
+}
+
+func TestClassifyService_TabnineContextEngine(t *testing.T) {
+	got := classifyService([]string{"CODE-ASSISTANT", "TABNINE-CONTEXT-ENGINE"})
+	if got != "Tabnine Context Engine" {
+		t.Errorf("classifyService(TABNINE-CONTEXT-ENGINE) = %q; want Tabnine Context Engine", got)
+	}
+}
+
+func TestClassifyService_SweepAI(t *testing.T) {
+	got := classifyService([]string{"CODE-ASSISTANT", "SWEEP-AI"})
+	if got != "Sweep AI" {
+		t.Errorf("classifyService(SWEEP-AI) = %q; want Sweep AI", got)
+	}
+}
+
+func TestClassifyService_Dyad(t *testing.T) {
+	got := classifyService([]string{"CODE-ASSISTANT", "DYAD"})
+	if got != "Dyad" {
+		t.Errorf("classifyService(DYAD) = %q; want Dyad", got)
+	}
+}
+
+func TestClassifyService_Refact(t *testing.T) {
+	got := classifyService([]string{"CODE-ASSISTANT", "REFACT"})
+	if got != "Refact" {
+		t.Errorf("classifyService(REFACT) = %q; want Refact", got)
+	}
+}
+
+func TestClassifyService_CodeAssistantGeneric(t *testing.T) {
+	// The class tag alone, no recognized brand → "Code assistant",
+	// NOT the generic "AI/ML service" that AI.C1 excludes.
+	got := classifyService([]string{"CODE-ASSISTANT", "SOME-NEW-TOOL"})
+	if got != "Code assistant" {
+		t.Errorf("classifyService(CODE-ASSISTANT only) = %q; want Code assistant", got)
+	}
+}
+
+// OpenHands is an autonomous coding-agent backend — it must populate
+// AgentPlatform so it scores the same agent-platform exposure class as
+// AutoGen Studio. The other code-assistant tags are completion/search
+// services and must NOT set AgentPlatform.
+func TestApplyTagDerivations_OpenHandsIsAgentPlatform(t *testing.T) {
+	openhands := nodeFromTags([]string{"CODE-ASSISTANT", "OPENHANDS", "UNAUTH"})
+	if !openhands.AgentPlatform {
+		t.Error("OPENHANDS finding should set Node.AgentPlatform (autonomous coding-agent backend)")
+	}
+	if openhands.ServiceClass == "AI/ML service" {
+		t.Error("an OpenHands finding must not fall through to the generic 'AI/ML service' class")
+	}
+}
+
+func TestApplyTagDerivations_SourcegraphIsNotAgentPlatform(t *testing.T) {
+	sg := nodeFromTags([]string{"CODE-ASSISTANT", "SOURCEGRAPH"})
+	if sg.AgentPlatform {
+		t.Error("SOURCEGRAPH is code-search, not an agent platform — must NOT set AgentPlatform")
+	}
+	if sg.ServiceClass == "AI/ML service" {
+		t.Error("a Sourcegraph finding must not fall through to the generic 'AI/ML service' class")
+	}
+}
+
 func TestClassifyService_FallbackGeneric(t *testing.T) {
 	// Unrecognized tags → a generic label, NOT "Ollama".
 	got := classifyService([]string{"SOMETHING-NEW", "WIDGET"})

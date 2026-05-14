@@ -86,6 +86,27 @@ func classifyService(tags []string) string {
 		return "Redis"
 	case has("POSTGRES-EXPOSED"):
 		return "PostgreSQL"
+	// Code-assistant tier (category 09). The brand tags below are emitted
+	// by aimap's code-assistant fingerprints; CODE-ASSISTANT is the class
+	// tag. OpenHands is an autonomous coding-agent backend — its exposed
+	// /api/v1/settings is agent-platform-class exposure (see
+	// applyTagDerivations).
+	case has("OPENHANDS"):
+		return "OpenHands"
+	case has("SOURCEGRAPH"):
+		return "Sourcegraph"
+	case has("SOURCEBOT"):
+		return "Sourcebot"
+	case has("TABNINE-CONTEXT-ENGINE"):
+		return "Tabnine Context Engine"
+	case has("SWEEP-AI"):
+		return "Sweep AI"
+	case has("DYAD"):
+		return "Dyad"
+	case has("REFACT"):
+		return "Refact"
+	case has("CODE-ASSISTANT"):
+		return "Code assistant"
 	case has("UNAUTH-API") || has("FASTAPI"):
 		return "FastAPI service"
 	default:
@@ -110,7 +131,13 @@ func applyTagDerivations(n *Node) {
 			// Port11434Public is Ollama-specific. Only Ollama findings
 			// set it — not every VisorLog row.
 			n.Port11434Public = true
-		case "AUTOGEN-STUDIO", "UNAUTH-AGENT-PLATFORM":
+		case "AUTOGEN-STUDIO", "UNAUTH-AGENT-PLATFORM", "OPENHANDS":
+			// OpenHands is an autonomous coding-agent backend (ex-OpenDevin)
+			// — same agent-platform exposure class as AutoGen Studio. The
+			// other code-assistant tags (SOURCEGRAPH, TABNINE, etc.) are
+			// completion/search services, not agent platforms, so they are
+			// NOT mapped here — they score via the general ai_c1_applies
+			// path on service_class alone.
 			n.AgentPlatform = true
 		case "AZURE-BLOB-PUBLIC-LIST":
 			n.StorageACLOpen = true
