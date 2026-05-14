@@ -35,6 +35,11 @@ type Node struct {
 	AgentPlatform  bool `json:"agent_platform"`
 	StorageACLOpen bool `json:"storage_acl_open"`
 	DefaultCert    bool `json:"default_cert"`
+	// BrowserControl is true for the browser-automation backend tier
+	// (CDP, Splash, Selenium Grid, Selenoid, Browserless, Playwright
+	// MCP). An exposed one is unauthenticated remote browser control —
+	// cookie/session theft, SSRF, and arbitrary in-page JS execution.
+	BrowserControl bool `json:"browser_control"`
 }
 
 // classifyService maps a finding's tags to a human-readable service
@@ -58,6 +63,21 @@ func classifyService(tags []string) string {
 		return "MLflow"
 	case has("AZURE-BLOB-PUBLIC-LIST"):
 		return "Azure Blob (public-list ACL)"
+	// Browser-automation classes are checked before TRAEFIK-DEFAULT-CERT:
+	// a host can carry both BROWSER-CONTROL and a default-cert tag, and
+	// the browser-control identity is the load-bearing one.
+	case has("BROWSERLESS"):
+		return "Browserless"
+	case has("UNAUTH-CDP"):
+		return "Chrome DevTools Protocol"
+	case has("UNAUTH-SELENIUM-GRID"):
+		return "Selenium Grid"
+	case has("UNAUTH-SELENOID"):
+		return "Selenoid"
+	case has("UNAUTH-SPLASH"):
+		return "Splash render service"
+	case has("PLAYWRIGHT-MCP"):
+		return "Playwright MCP"
 	case has("TRAEFIK-DEFAULT-CERT"):
 		return "Traefik (default cert)"
 	case has("AIRFLOW-EXPOSED"):
@@ -96,6 +116,8 @@ func applyTagDerivations(n *Node) {
 			n.StorageACLOpen = true
 		case "TRAEFIK-DEFAULT-CERT":
 			n.DefaultCert = true
+		case "BROWSER-CONTROL":
+			n.BrowserControl = true
 		}
 	}
 }

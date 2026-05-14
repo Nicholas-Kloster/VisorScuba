@@ -43,6 +43,60 @@ func TestClassifyService_MLflow(t *testing.T) {
 	}
 }
 
+// Browser-automation backend tier. Before 2026-05-14 these tags fell
+// through to the generic "AI/ML service" label, which AI.C1 explicitly
+// excludes — so every Splash / CDP / Selenium / Browserless finding
+// scored 0 violations. Same class of gap as the "everything is Ollama"
+// bug: a service class the classifier didn't know about.
+func TestClassifyService_Splash(t *testing.T) {
+	got := classifyService([]string{"UNAUTH-SPLASH", "LUA-RCE-CONFIRMED", "SSRF-BY-DESIGN"})
+	if got != "Splash render service" {
+		t.Errorf("classifyService(UNAUTH-SPLASH) = %q; want Splash render service", got)
+	}
+}
+
+func TestClassifyService_CDP(t *testing.T) {
+	got := classifyService([]string{"UNAUTH-CDP", "BROWSER-CONTROL"})
+	if got != "Chrome DevTools Protocol" {
+		t.Errorf("classifyService(UNAUTH-CDP) = %q; want Chrome DevTools Protocol", got)
+	}
+}
+
+func TestClassifyService_SeleniumGrid(t *testing.T) {
+	got := classifyService([]string{"UNAUTH-SELENIUM-GRID", "BROWSER-CONTROL"})
+	if got != "Selenium Grid" {
+		t.Errorf("classifyService(UNAUTH-SELENIUM-GRID) = %q; want Selenium Grid", got)
+	}
+}
+
+func TestClassifyService_Selenoid(t *testing.T) {
+	got := classifyService([]string{"UNAUTH-SELENOID", "COMPUTE-THEFT"})
+	if got != "Selenoid" {
+		t.Errorf("classifyService(UNAUTH-SELENOID) = %q; want Selenoid", got)
+	}
+}
+
+func TestClassifyService_Browserless(t *testing.T) {
+	got := classifyService([]string{"UNAUTH-CDP", "BROWSERLESS", "BROWSER-CONTROL"})
+	if got != "Browserless" {
+		t.Errorf("classifyService(BROWSERLESS) = %q; want Browserless", got)
+	}
+}
+
+// A browser-automation finding must populate BrowserControl so the
+// dedicated rule can fire, and must NOT fall through to the generic
+// class that AI.C1 excludes.
+func TestApplyTagDerivations_BrowserControl(t *testing.T) {
+	n := &Node{Tags: []string{"UNAUTH-SPLASH", "BROWSER-CONTROL", "SSRF-BY-DESIGN"}}
+	applyTagDerivations(n)
+	if !n.BrowserControl {
+		t.Error("BROWSER-CONTROL tag should set Node.BrowserControl")
+	}
+	if n.ServiceClass == "AI/ML service" {
+		t.Error("a Splash finding must not fall through to the generic 'AI/ML service' class")
+	}
+}
+
 func TestClassifyService_FallbackGeneric(t *testing.T) {
 	// Unrecognized tags → a generic label, NOT "Ollama".
 	got := classifyService([]string{"SOMETHING-NEW", "WIDGET"})

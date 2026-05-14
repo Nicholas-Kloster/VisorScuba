@@ -49,14 +49,15 @@ deny[result] {
 ai_c1_applies { input.port_11434_public == true }
 ai_c1_applies { input.agent_platform == true }
 ai_c1_applies {
-    # Any non-storage, non-cert finding with a recognized service class
-    # is an exposed service. Storage-ACL and default-cert findings have
-    # their own dedicated rules (AI.C5, AI.H5) and should not double-fire
-    # under AI.C1.
+    # Any non-storage, non-cert, non-browser-control finding with a
+    # recognized service class is an exposed service. Storage-ACL,
+    # default-cert, and browser-control findings have their own dedicated
+    # rules (AI.C5, AI.H5, AI.C6) and should not double-fire under AI.C1.
     input.service_class != ""
     input.service_class != "AI/ML service"
     not input.storage_acl_open
     not input.default_cert
+    not input.browser_control
 }
 
 # AI.C5 — Cloud object store left world-readable (anonymous list ACL).
@@ -94,12 +95,32 @@ deny[result] {
     }
 }
 
+# AI.C6 — Browser-automation backend exposed without authentication.
+# Surfaced by the 2026-05-14 browser-automation survey. CDP, Splash,
+# Selenium Grid, Selenoid, Browserless and Playwright MCP have no auth
+# concept in their default deployment. An exposed instance is
+# unauthenticated remote browser control: cookie/session-token theft on
+# any live authenticated session, SSRF to internal services and cloud
+# metadata, and arbitrary in-page JavaScript execution. Distinct from a
+# plain unauthenticated dashboard (AI.C1) because the capability is
+# remote control of a browser, not just data disclosure.
+deny[result] {
+    input.browser_control == true
+    result := {
+        "id":          "AI.C6",
+        "criticality": "Critical",
+        "requirement": "Browser-automation backends must not be reachable without authentication — an exposed one is remote browser control",
+        "details":     sprintf("Unauthenticated %v at %v (%v) — remote browser control: session-token theft, SSRF, in-page JS execution", [service_label, input.host_ip, input.host_hostname]),
+    }
+}
+
 # AI.C4 — Government infrastructure with any critical finding
 # Helper: true when any critical condition fires (avoids self-reference in deny)
 has_critical_finding { ai_c1_applies }
 has_critical_finding { input.account_takeover == true }
 has_critical_finding { input.cve_2025_63389_vulnerable == true }
 has_critical_finding { input.storage_acl_open == true }
+has_critical_finding { input.browser_control == true }
 
 deny[result] {
     input.sector == "government"
