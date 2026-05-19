@@ -95,6 +95,29 @@ deny[result] {
     }
 }
 
+# AI.C7 — Pooled-account upstream proxy with publicly-readable account metrics.
+# The v1 claude-relay-service finding shape (Insight #39): a Tier-2 relay
+# pools paid Tier-1 vendor accounts (Anthropic, OpenAI, Google) and serves
+# downstream customers. When account counters, total-token counters, or
+# third-party-concurrency settings are reachable WITHOUT authentication,
+# the vendor's enforcement target (the visible account list) is
+# externally observable. Disclosure target is the vendor whose accounts
+# are pooled, NOT the host operator (per Insight #39 disclosure routing).
+# Tag-anchored to POOL-LEAK / POOLED-ACCOUNT-PUBLIC / ACCOUNT-COUNTER-PUBLIC.
+deny[result] {
+    has_pool_leak_tag
+    result := {
+        "id":          "AI.C7",
+        "criticality": "Critical",
+        "requirement": "Pooled-account upstream proxies must auth-gate account metrics — public account counters expose the entire downstream architecture and the upstream vendor's pooled credentials",
+        "details":     sprintf("Pooled-account upstream proxy at %v (%v) with publicly-readable account/token counters — Insight #39 architecture exposed", [input.host_ip, input.host_hostname]),
+    }
+}
+
+has_pool_leak_tag { "POOL-LEAK" in input.tags }
+has_pool_leak_tag { "POOLED-ACCOUNT-PUBLIC" in input.tags }
+has_pool_leak_tag { "ACCOUNT-COUNTER-PUBLIC" in input.tags }
+
 # AI.C6 — Browser-automation backend exposed without authentication.
 # Surfaced by the 2026-05-14 browser-automation survey. CDP, Splash,
 # Selenium Grid, Selenoid, Browserless and Playwright MCP have no auth
@@ -121,6 +144,7 @@ has_critical_finding { input.account_takeover == true }
 has_critical_finding { input.cve_2025_63389_vulnerable == true }
 has_critical_finding { input.storage_acl_open == true }
 has_critical_finding { input.browser_control == true }
+has_critical_finding { has_pool_leak_tag }
 
 deny[result] {
     input.sector == "government"
@@ -198,6 +222,37 @@ warn[result] {
     }
 }
 
+# AI.H6 — Install wizard accessible (admin-claim-window).
+# Surfaced by the 2026-05-19 sub2api population survey: 101/7,720 hosts
+# returned needs_setup=true on a publicly-reachable /setup/* endpoint.
+# Anyone reaching the host before the operator completes setup can POST
+# to /setup/init (or equivalent) to claim the admin account and bind
+# their own credentials. Distinct from AI.C1 (general unauth exposure)
+# because the capability is administrative takeover, not just data
+# disclosure. Tag-anchored to keep the rule cheap to evaluate.
+warn[result] {
+    "SETUP-OPEN" in input.tags
+    result := {
+        "id":          "AI.H6",
+        "criticality": "High",
+        "requirement": "Install wizards must not be reachable in a needs_setup=true state from the public internet — first POST claims admin",
+        "details":     sprintf("Install wizard accessible at %v (%v) — admin-claim window open", [input.host_ip, input.host_hostname]),
+    }
+}
+
+# AI.H6 also fires on the more specific TAKEOVER-VECTOR tag used by
+# the sub2api verify probe.
+warn[result] {
+    "TAKEOVER-VECTOR" in input.tags
+    not "SETUP-OPEN" in input.tags  # avoid double-fire when both tags present
+    result := {
+        "id":          "AI.H6",
+        "criticality": "High",
+        "requirement": "Install wizards must not be reachable in a needs_setup=true state from the public internet — first POST claims admin",
+        "details":     sprintf("Admin-takeover vector at %v (%v)", [input.host_ip, input.host_hostname]),
+    }
+}
+
 #──────────────────────────────────────────────────────────────
 # MEDIUM info  (score −0, flagged only)
 #──────────────────────────────────────────────────────────────
@@ -225,6 +280,29 @@ info[result] {
         "details":     sprintf("Custom system prompt deployed on %v infrastructure at %v", [input.sector, input.host_ip]),
     }
 }
+
+# AI.M3 — Development server exposed in production.
+# Surfaced by the 2026-05-19 sub2api survey (4/7,720 hosts served the
+# vite dev runtime in production HTML). Source-map paths, unminified
+# bundles, and dev-mode WebSocket endpoints become reachable. Indicates
+# CI/CD misconfiguration: the operator deployed the dev build instead
+# of the production build. Tag-anchored to BUILD-LEAK / DEV-MODE /
+# VITE-DEV-EXPOSED / WEBPACK-DEV-EXPOSED / DJANGO-DEBUG-TRUE.
+info[result] {
+    has_dev_mode_tag
+    result := {
+        "id":          "AI.M3",
+        "criticality": "Medium",
+        "requirement": "Production deployments must serve production builds — dev servers expose source-maps, unminified code, and hot-reload sockets",
+        "details":     sprintf("Development server exposed in production at %v (%v)", [input.host_ip, input.host_hostname]),
+    }
+}
+
+has_dev_mode_tag { "DEV-MODE" in input.tags }
+has_dev_mode_tag { "BUILD-LEAK" in input.tags }
+has_dev_mode_tag { "VITE-DEV-EXPOSED" in input.tags }
+has_dev_mode_tag { "WEBPACK-DEV-EXPOSED" in input.tags }
+has_dev_mode_tag { "DJANGO-DEBUG-TRUE" in input.tags }
 
 #──────────────────────────────────────────────────────────────
 # Scoring and summary
