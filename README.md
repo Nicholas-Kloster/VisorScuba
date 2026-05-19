@@ -30,20 +30,32 @@ Run `visorscuba assess --db nuclide.db --org "government" --json` and cross-refe
 
 ## What It Does
 
-Evaluates every open finding against six baseline controls:
+Evaluates every open finding against 16 baseline controls:
 
-| ID | Criticality | Control |
-|----|-------------|---------|
-| AI.C1 | Critical | Unauthenticated AI service publicly exposed |
-| AI.C2 | Critical | Live Ollama Connect account takeover possible |
-| AI.C3 | Critical | CVE-2025-63389: unauthenticated system prompt injection |
-| AI.C4 | Critical | Government infrastructure with any critical finding |
-| AI.H1 | High | Cloud API proxy quota exposed without auth |
-| AI.H2 | High | RAG pipeline on government infrastructure |
-| AI.H3 | High | Tool-calling model publicly exposed |
-| AI.H4 | High | Healthcare AI deployment without authentication |
-| AI.M1 | Medium | Knowledge-distilled model exposed |
-| AI.M2 | Medium | Custom AI persona on sensitive infrastructure |
+| ID | Criticality | Control | Tag triggers |
+|----|-------------|---------|--------------|
+| AI.C1 | Critical | Unauthenticated AI service publicly exposed | `port_11434_public`, `agent_platform`, or any non-storage `service_class` |
+| AI.C2 | Critical | Live Ollama Connect — account takeover possible | `account_takeover: true` |
+| AI.C3 | Critical | CVE-2025-63389: unauthenticated system prompt injection | `cve_2025_63389_vulnerable: true` |
+| AI.C4 | Critical | Government infrastructure with any critical finding | `sector: government` + any critical finding |
+| AI.C5 | Critical | Cloud object store left world-readable (anonymous list ACL) | `storage_acl_open: true` |
+| AI.C6 | Critical | Browser-automation backend exposed without authentication | `browser_control: true` |
+| **AI.C7** | **Critical** | **Pooled-account upstream proxy with publicly-readable account/token counters (Insight #39 architecture)** | `POOL-LEAK`, `POOLED-ACCOUNT-PUBLIC`, `ACCOUNT-COUNTER-PUBLIC` |
+| AI.H1 | High | Cloud API proxy quota drainable without auth | `cloud_proxy: true` |
+| AI.H2 | High | RAG pipeline on government infrastructure | `RAG` tag + `sector: government` |
+| AI.H3 | High | Tool-calling model publicly exposed (prompt injection → function call chain) | `TOOLS` tag |
+| AI.H4 | High | Healthcare AI deployment without authentication (PHI/PII risk) | `sector: healthcare` |
+| AI.H5 | High | Default-config TLS proxy (e.g. Traefik default cert) fronting an AI stack | `default_cert: true` |
+| **AI.H6** | **High** | **Install wizard accessible — admin-claim-window open (first POST claims admin)** | `SETUP-OPEN`, `TAKEOVER-VECTOR`, `INSTALL-WIZARD-EXPOSED` |
+| AI.M1 | Medium | Knowledge-distilled model exposed | `DISTILLED` tag |
+| AI.M2 | Medium | Custom AI persona on sensitive infrastructure (gov / healthcare / military) | `models[].system_prompt` non-empty + `sector ∈ {government, healthcare, military}` |
+| **AI.M3** | **Medium** | **Development server exposed in production (source-map paths, unminified bundles, dev-mode WebSocket)** | `DEV-MODE`, `BUILD-LEAK`, `VITE-DEV-EXPOSED`, `WEBPACK-DEV-EXPOSED`, `DJANGO-DEBUG-TRUE` |
+
+**Bold** entries shipped in the v0.2 series (AI.H6 / AI.M3 / AI.C7 land
+in the 3e34f4c commit alongside the 2026-05-19 sub2api population survey
+that surfaced the gaps). The other three (AI.C5 / AI.C6 / AI.H5) shipped
+earlier and were missing from the README table; this update closes that
+gap.
 
 Scoring: `10 − (critical_count × 3) − warn_count`, floor 0.
 
